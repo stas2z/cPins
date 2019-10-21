@@ -66,7 +66,7 @@ public:
   static const uint32_t ticksPerCycle = PWMMAX + 1;
   static uint16_t pinCounter; // static counter for inited pins, public only for
                               // testing purposes only
-  static cPins *pinsList[CPINS_MAX]; // list of inited pins
+  static cPins **pinsList;    // list of inited pins
   char *name = (char *)nullptr; // pin name, filled by CPIN define, can be used
                                 // for debug purposes
   uint16_t tempDuty = 0;

@@ -25,6 +25,8 @@ blinkfade	KEYWORD2
 breathe	KEYWORD2
 initTimer	KEYWORD2
 freeTimer		KEYWORD2
+noInterrupt		KEYWORD2
+setMode		KEYWORD2
 
 #######################################
 # Constants (LITERAL1)

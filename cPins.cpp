@@ -10,9 +10,12 @@ uint32_t cPins::prevms = 0;
 uint8_t cPins::ledBrightness = 100;
 HardwareTimer *cPins::T = nullptr;
 bool cPins::timerInited = false;
-cPins *cPins::pinsList[CPINS_MAX];
+cPins **cPins::pinsList;
 
-void cPins::pushInstance(cPins *instance) { pinsList[pinCounter++] = instance; }
+void cPins::pushInstance(cPins *instance) {
+  pinsList = (cPins **) realloc((void *)pinsList, (pinCounter + 1) * sizeof(instance));
+  pinsList[pinCounter++] = instance;
+}
 
 cPins::cPins(const char *cname, uint16_t _PIN, uint8_t isled, uint8_t hs)
     : port(get_GPIO_Port(STM_PORT(digitalPin[_PIN]))),
@@ -240,6 +243,7 @@ void cPins::freeTimer(void) {
 }
 cPins::~cPins() {
   pinCounter--;
+  if (pinCounter) pinsList = (cPins **) realloc((void *)pinsList, pinCounter * sizeof(cPins *));
   if (!pinCounter && timerInited)
     freeTimer(); // normally it should never happen cuz all pins have to be
                  // statically defined, but if you want to malloc cpins
