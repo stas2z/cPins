@@ -1,9 +1,8 @@
 # cPins
 
-Simple and easy to use timer based pins/leds switching on/off/blink/PWM library for STM32
-Use HardwareTimer class comes since core version 1.7.0.
+Simple and easy to use timer based pins/leds switching on/off/blink/PWM library for STM32. Using HardwareTimer class comes since core version 1.7.0.
 
-##Usage
+## Usage
 
 Include library and define your pins as pins or leds
 
@@ -40,4 +39,6 @@ Thats all, you can use your pins/leds by calling em:
 LED.blink(2000, 1000); // 2s long, 2s for a full cycle, 1s for ON and 1s for OFF states
 PIN_PA0.on(); // just switch pin ON
 PIN_PA0.setPWM(100); // set PWM duty for pin, 8bit PWM implemented, so duty can be set to 0..255
+PIN_PA1.blinkfade(10000, 1000); // blink with fadeout
+PIN_PA2.breathe(4000,2000); // breathe (soft fade in/fade out)
 ```
