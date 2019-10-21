@@ -1,0 +1,31 @@
+#######################################
+# Syntax Coloring Map 
+# for CPIN
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+cPins	KEYWORD1
+CPIN	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+write	KEYWORD2
+read	KEYWORD2
+set	KEYWORD2
+reset KEYWORD2
+on	KEYWORD2
+off	KEYWORD2
+blink	KEYWORD2
+blinkfade	KEYWORD2
+breathe	KEYWORD2
+initTimer	KEYWORD2
+freeTimer		KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
