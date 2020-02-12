@@ -9,10 +9,12 @@ Include library and define your pins as pins or leds
 ```
 #include <cPins.h>
 
-CPIN(PIN_PA0, PA0 /*, CPIN_PIN, HIGH*/); // usual pin assigned to PA0 (active HIGH)
-CPIN(PIN_PA1, PA1, CPIN_PIN, LOW); //same but active LOW
-CPIN(PIN_PA2, PA2, CPIN_LED, HIGH); //define PA2 as LED active HIGH
-CPIN(LED, LED_BUILTIN, CPIN_LED /*, LOW*/); // define LED_BUILTIN as LED active LOW
+CPIN(PIN_PA0, PA0 /*, CPIN_PIN, CPIN_HIGH*/); // usual pin assigned to PA0 (active HIGH)
+CPIN(PIN_PA1, PA1, CPIN_PIN, CPIN_LOW); //same but active LOW
+CPIN(PIN_PA2, PA2, CPIN_PIN, CPIN_OD); //same but use OPEN DRAIN mode instead of PUSH PULL
+CPIN(PIN_PA3, PA3, CPIN_LED, CPIN_HIGH); //define PA3 as LED active HIGH
+CPIN(PIN_PA4, PA4, CPIN_HWLED, CPIN_HIGH); //define PA4 as LED active HIGH using hardware PWM
+CPIN(LED, LED_BUILTIN, CPIN_LED /*, CPIN_LOW*/); // define LED_BUILTIN as LED active LOW
 ```
 
 Then you need to assign timer for library:

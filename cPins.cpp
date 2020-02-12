@@ -19,9 +19,13 @@ void cPins::pushInstance(cPins *instance) {
 
 cPins::cPins(const char *cname, uint16_t _PIN, uint8_t isled, uint8_t hs)
     : port(get_GPIO_Port(STM_PORT(digitalPin[_PIN]))),
-      pin(STM_PIN(digitalPin[_PIN])), highState(hs), lowState(!hs),
-      isLed(isled) {
-  pinMode(_PIN, OUTPUT);
+      pin(STM_PIN(digitalPin[_PIN])), pinHW(_PIN), highState(hs & 0x1),
+      lowState(!(hs & 1U)), isLed(isled & 1U), isHW(isled & 2U) {
+  uint8_t isOD = hs & 2U;
+  pinMode(_PIN, isOD ? OUTPUT_OPEN_DRAIN : OUTPUT);
+  if ((isHW) && !(pin_in_pinmap(digitalPinToPinName(_PIN), PinMap_PWM))) {
+    isHW = 0;
+  }
   reset();
   name = (char *)malloc(strlen(cname) + 1);
   strcpy(name, cname);
@@ -188,9 +192,7 @@ void cPins::timerCallback(HardwareTimer *ht) {
         if (pinsList[c]->toBreathe) {
           uint32_t _tduty;
           if (pinsList[c]->isLed) {
-            _tduty = pwmLED[((ledBrightness * (pinsList[c]->getDuty() << 8)) /
-                             100) >>
-                            8];
+            _tduty = pwmLED[((ledBrightness * (pinsList[c]->getDuty() << 8)) / 100) >> 8];
           } else {
             _tduty = pinsList[c]->pwmDuty;
           }
@@ -212,12 +214,16 @@ void cPins::timerCallback(HardwareTimer *ht) {
         pinsList[c]->tempDuty = pinsList[c]->pwmDuty;
       }
       if ((pinsList[c]->tempDuty) && (pinsList[c]->blinkTime)) {
-        pinsList[c]->set();
+        if (pinsList[c]->isHW) {
+          pwm_start(digitalPinToPinName(pinsList[c]->pinHW), CPIN_HWFREQ, pinsList[c]->tempDuty, (TimerCompareFormat_t) 8);
+        } else {
+          pinsList[c]->set();
+        }
       } else {
         pinsList[c]->reset();
       }
     } else {
-      if ((pinsList[c]->blinkTime) && (pinsList[c]->tempDuty == counter)) {
+      if ((!pinsList[c]->isHW) && (pinsList[c]->blinkTime) && (pinsList[c]->tempDuty == counter)) {
         pinsList[c]->reset();
       }
     }
@@ -226,8 +232,21 @@ void cPins::timerCallback(HardwareTimer *ht) {
 }
 void cPins::initTimer(TIM_TypeDef *timer, uint32_t freq) {
   timerFreq = freq;
-  if (timerInited)
+  if (timerInited) {
     freeTimer();
+  }
+  
+  for (uint16_t c = 0; c < pinCounter; c++) {
+    if (pinsList[c]->isHW == 1) {
+      PinName p = digitalPinToPinName(pinsList[c]->pinHW);
+      if (timer == (TIM_TypeDef *)pinmap_peripheral(p, PinMap_PWM)) {
+        pinsList[c]->isHW = 0;
+      } else {
+        //pwm_start(digitalPinToPinName(pinsList[c]->pinHW), CPIN_HWFREQ, 1, (TimerCompareFormat_t) 8);
+      }
+    }
+  }
+
   T = new HardwareTimer(timer);
   T->pause();
   T->setOverflow(timerFreq * ticksPerCycle, HERTZ_FORMAT);

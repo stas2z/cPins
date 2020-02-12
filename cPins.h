@@ -9,9 +9,11 @@
 #endif
 
 #define PWMMAX 256
+#define CPIN_HWFREQ 1000
 
-enum ledornot { CPIN_PIN = 0, CPIN_LED = 1 };
+enum cpinledtype { CPIN_PIN = 0, CPIN_LED = 1, CPIN_HWPIN = 2 , CPIN_HWLED = 3};
 enum cpinmode { CPIN_NORMAL = 0, CPIN_ADDITIVE, CPIN_CONTINUE, CPIN_MODEEND };
+enum cpinstate { CPIN_LOW = 0, CPIN_HIGH = 1, CPIN_OD = 2 };
 
 static const uint8_t pwmLED[257] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01,
@@ -41,6 +43,8 @@ class cPins {
 private:
   GPIO_TypeDef *port;
   uint16_t pin;
+  uint32_t pinHW;
+  uint8_t isHW = 0;
   uint8_t highState, lowState;
   uint16_t pwmDuty = 0;
   uint16_t Duty = 0;
@@ -72,7 +76,7 @@ public:
   uint16_t tempDuty = 0;
 
   cPins(const char *cname, uint16_t _PIN, uint8_t isled = CPIN_PIN,
-        uint8_t hs = 1);
+        uint8_t hs = CPIN_HIGH);
   // CPIN_PIN will init pin as usual gpio, use CPIN_LED to make brightness
   // change better for leds hs = 0 is for active low pins
 
