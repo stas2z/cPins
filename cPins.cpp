@@ -13,7 +13,8 @@ bool cPins::timerInited = false;
 cPins **cPins::pinsList;
 
 void cPins::pushInstance(cPins *instance) {
-  pinsList = (cPins **) realloc((void *)pinsList, (pinCounter + 1) * sizeof(instance));
+  pinsList =
+      (cPins **)realloc((void *)pinsList, (pinCounter + 1) * sizeof(instance));
   pinsList[pinCounter++] = instance;
 }
 
@@ -174,7 +175,10 @@ void cPins::timerCallback(HardwareTimer *ht) {
   if (ms > prevms) {
     prevms = ms;
     for (uint16_t c = 0; c < pinCounter; c++) {
-      if (pinsList[c]->blinkTime == 0) {
+      if (!pinsList[c]->blinkTime) {
+        if (pinsList[c]->isHW)
+          pwm_start(digitalPinToPinName(pinsList[c]->pinHW), CPIN_HWFREQ,
+                    pinsList[c]->lowState * 255, (TimerCompareFormat_t)8);
         pinsList[c]->reset();
       } else {
         --pinsList[c]->blinkTime;
@@ -192,7 +196,9 @@ void cPins::timerCallback(HardwareTimer *ht) {
         if (pinsList[c]->toBreathe) {
           uint32_t _tduty;
           if (pinsList[c]->isLed) {
-            _tduty = pwmLED[((ledBrightness * (pinsList[c]->getDuty() << 8)) / 100) >> 8];
+            _tduty = pwmLED[((ledBrightness * (pinsList[c]->getDuty() << 8)) /
+                             100) >>
+                            8];
           } else {
             _tduty = pinsList[c]->pwmDuty;
           }
@@ -213,17 +219,30 @@ void cPins::timerCallback(HardwareTimer *ht) {
       } else {
         pinsList[c]->tempDuty = pinsList[c]->pwmDuty;
       }
-      if ((pinsList[c]->tempDuty) && (pinsList[c]->blinkTime)) {
-        if (pinsList[c]->isHW) {
-          pwm_start(digitalPinToPinName(pinsList[c]->pinHW), CPIN_HWFREQ, pinsList[c]->tempDuty, (TimerCompareFormat_t) 8);
+      if (pinsList[c]->isHW) {
+        if (pinsList[c]->tempDuty > 255)
+          pinsList[c]->tempDuty = 255;
+        if (pinsList[c]->blinkTime) {
+
+          pwm_start(digitalPinToPinName(pinsList[c]->pinHW), CPIN_HWFREQ,
+                    pinsList[c]->highState ? pinsList[c]->tempDuty
+                                           : 255 - pinsList[c]->tempDuty,
+                    (TimerCompareFormat_t)8);
         } else {
-          pinsList[c]->set();
+          pwm_start(digitalPinToPinName(pinsList[c]->pinHW), CPIN_HWFREQ,
+                    pinsList[c]->lowState * 255, (TimerCompareFormat_t)8);
+          pinsList[c]->reset();
         }
       } else {
-        pinsList[c]->reset();
+        if ((pinsList[c]->tempDuty) && (pinsList[c]->blinkTime)) {
+          pinsList[c]->set();
+        } else {
+          pinsList[c]->reset();
+        }
       }
     } else {
-      if ((!pinsList[c]->isHW) && (pinsList[c]->blinkTime) && (pinsList[c]->tempDuty == counter)) {
+      if ((!pinsList[c]->isHW) && (pinsList[c]->blinkTime) &&
+          (pinsList[c]->tempDuty == counter)) {
         pinsList[c]->reset();
       }
     }
@@ -235,14 +254,12 @@ void cPins::initTimer(TIM_TypeDef *timer, uint32_t freq) {
   if (timerInited) {
     freeTimer();
   }
-  
+
   for (uint16_t c = 0; c < pinCounter; c++) {
     if (pinsList[c]->isHW == 1) {
       PinName p = digitalPinToPinName(pinsList[c]->pinHW);
       if (timer == (TIM_TypeDef *)pinmap_peripheral(p, PinMap_PWM)) {
         pinsList[c]->isHW = 0;
-      } else {
-        //pwm_start(digitalPinToPinName(pinsList[c]->pinHW), CPIN_HWFREQ, 1, (TimerCompareFormat_t) 8);
       }
     }
   }
@@ -262,7 +279,9 @@ void cPins::freeTimer(void) {
 }
 cPins::~cPins() {
   pinCounter--;
-  if (pinCounter) pinsList = (cPins **) realloc((void *)pinsList, pinCounter * sizeof(cPins *));
+  if (pinCounter)
+    pinsList =
+        (cPins **)realloc((void *)pinsList, pinCounter * sizeof(cPins *));
   if (!pinCounter && timerInited)
     freeTimer(); // normally it should never happen cuz all pins have to be
                  // statically defined, but if you want to malloc cpins
