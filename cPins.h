@@ -9,7 +9,10 @@
 #endif
 
 #define PWMMAX 256
+
+#ifndef CPIN_HWFREQ
 #define CPIN_HWFREQ 1000
+#endif
 
 enum cpinledtype { CPIN_PIN = 0, CPIN_LED = 1, CPIN_HWPIN = 2 , CPIN_HWLED = 3};
 enum cpinmode { CPIN_NORMAL = 0, CPIN_ADDITIVE, CPIN_CONTINUE, CPIN_MODEEND };
@@ -67,13 +70,14 @@ private:
 
 public:
   static uint64_t timerCounter;
-  static const uint32_t ticksPerCycle = PWMMAX + 1;
+  static const uint32_t ticksPerCycle = PWMMAX;
   static uint16_t pinCounter; // static counter for inited pins, public only for
                               // testing purposes only
   static cPins **pinsList;    // list of inited pins
   char *name = (char *)nullptr; // pin name, filled by CPIN define, can be used
                                 // for debug purposes
   uint16_t tempDuty = 0;
+  uint16_t prevDuty = 0xFFFF;
 
   cPins(const char *cname, uint16_t _PIN, uint8_t isled = CPIN_PIN,
         uint8_t hs = CPIN_HIGH);
