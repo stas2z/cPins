@@ -17,7 +17,7 @@ cPins **cPins::localList;
 void cPins::pushInstance(cPins *instance)
 {
   pinsList = (cPins **)realloc((void *)pinsList, (pinCounter + 1) * sizeof(instance));
-  localList = (cPins **)realloc((void *)pinsList, (pinCounter + 1) * sizeof(instance));
+  localList = (cPins **)realloc((void *)localList, (pinCounter + 1) * sizeof(instance));
   pinsList[pinCounter++] = instance;
 }
 
@@ -200,8 +200,7 @@ void cPins::timerCallback(HardwareTimer *ht)
   if (ms > prevms)
   {
     localCounter = 0;
-    prevms = ms;
-    for (uint16_t c = 0; c < pinCounter; c++)
+    for (uint32_t c = 0; c < pinCounter; c++)
     {
       if (pinsList[c]->blinkTime == 0)
       {
@@ -214,11 +213,16 @@ void cPins::timerCallback(HardwareTimer *ht)
       }
       else
       {
-        localList[localCounter] = pinsList[c];
-        localCounter++;
-        --pinsList[c]->blinkTime;
+        if (pinsList[c]->blinkTime > ms - prevms) {
+          pinsList[c]->blinkTime-= ms - prevms;
+        } else {
+          pinsList[c]->blinkTime = 0;
+        }
+        localList[localCounter++] = pinsList[c];     
       }
     }
+    prevms = ms;
+        
   }
   for (uint16_t c = 0; c < localCounter; c++)
   {
@@ -278,7 +282,7 @@ void cPins::timerCallback(HardwareTimer *ht)
       }
       else
       {
-        if ((localList[c]->tempDuty) && (localList[c]->blinkTime))
+        if (localList[c]->tempDuty)
         {
           localList[c]->set();
         }
@@ -339,7 +343,7 @@ cPins::~cPins()
   if (pinCounter)
   {
     pinsList = (cPins **)realloc((void *)pinsList, pinCounter * sizeof(cPins *));
-    localList = (cPins **)realloc((void *)pinsList, pinCounter * sizeof(cPins *));
+    localList = (cPins **)realloc((void *)localList, pinCounter * sizeof(cPins *));
   }
   if (!pinCounter && timerInited)
     freeTimer(); // normally it should never happen cuz all pins have to be
