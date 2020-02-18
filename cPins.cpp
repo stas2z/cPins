@@ -6,16 +6,18 @@
 uint16_t cPins::pinCounter = 0;
 uint64_t cPins::timerCounter = 0;
 uint32_t cPins::timerFreq = 0;
+uint32_t cPins::localCounter = 0;
 uint32_t cPins::prevms = 0;
 uint8_t cPins::ledBrightness = 100;
 HardwareTimer *cPins::T = nullptr;
 bool cPins::timerInited = false;
 cPins **cPins::pinsList;
+cPins **cPins::localList;
 
 void cPins::pushInstance(cPins *instance)
 {
-  pinsList =
-      (cPins **)realloc((void *)pinsList, (pinCounter + 1) * sizeof(instance));
+  pinsList = (cPins **)realloc((void *)pinsList, (pinCounter + 1) * sizeof(instance));
+  localList = (cPins **)realloc((void *)pinsList, (pinCounter + 1) * sizeof(instance));
   pinsList[pinCounter++] = instance;
 }
 
@@ -197,10 +199,11 @@ void cPins::timerCallback(HardwareTimer *ht)
   uint32_t ms = (((timerCounter * 1000)) / (timerFreq * ticksPerCycle));
   if (ms > prevms)
   {
+    localCounter = 0;
     prevms = ms;
     for (uint16_t c = 0; c < pinCounter; c++)
     {
-      if (!pinsList[c]->blinkTime)
+      if (pinsList[c]->blinkTime == 0)
       {
         if ((pinsList[c]->isHW) && (pinsList[c]->prevDuty > 0))
         {
@@ -211,87 +214,88 @@ void cPins::timerCallback(HardwareTimer *ht)
       }
       else
       {
+        localList[localCounter] = pinsList[c];
+        localCounter++;
         --pinsList[c]->blinkTime;
       }
     }
   }
-  for (uint16_t c = 0; c < pinCounter; c++)
+  for (uint16_t c = 0; c < localCounter; c++)
   {
-    if (pinsList[c]->blinkTime > 0)
-      if (!counter)
+    if (!counter)
+    {
+      if (localList[c]->blinkPeriod)
       {
-        if (pinsList[c]->blinkPeriod)
+        uint32_t period =
+            ((localList[c]->blinkInitTime - localList[c]->blinkTime + 1 +
+              localList[c]->phaseShift) /
+             (localList[c]->blinkPeriod >> 1)) &
+            1UL;
+        if (localList[c]->toBreathe)
         {
-          uint32_t period =
-              ((pinsList[c]->blinkInitTime - pinsList[c]->blinkTime + 1 +
-                pinsList[c]->phaseShift) /
-               (pinsList[c]->blinkPeriod >> 1)) &
-              1UL;
-          if (pinsList[c]->toBreathe)
+          uint32_t _tduty;
+          if (localList[c]->isLed)
           {
-            uint32_t _tduty;
-            if (pinsList[c]->isLed)
-            {
-              _tduty = pwmLED[((ledBrightness * (pinsList[c]->getDuty() << 8)) / 100) >> 8];
-            }
-            else
-            {
-              _tduty = pinsList[c]->pwmDuty;
-            }
-            uint32_t step =
-                ((pinsList[c]->blinkInitTime - pinsList[c]->blinkTime + 1 +
-                  pinsList[c]->phaseShift) %
-                 (pinsList[c]->blinkPeriod >> 1));
-            if ((!period) && (pinsList[c]->blinkFade))
-            {
-              pinsList[c]->tempDuty = _tduty;
-            }
-            else
-            {
-              uint32_t tempDuty = (((_tduty << 8) / (pinsList[c]->blinkPeriod >> 1)) * step) >> 8;
-              pinsList[c]->tempDuty = period ? _tduty - tempDuty : tempDuty;
-            }
+            _tduty = pwmLED[((ledBrightness * (localList[c]->getDuty() << 8)) / 100) >> 8];
           }
           else
           {
-            pinsList[c]->tempDuty = period ? pinsList[c]->pwmDuty : 0;
+            _tduty = localList[c]->pwmDuty;
+          }
+          uint32_t step =
+              ((localList[c]->blinkInitTime - localList[c]->blinkTime + 1 +
+                localList[c]->phaseShift) %
+               (localList[c]->blinkPeriod >> 1));
+          if ((!period) && (localList[c]->blinkFade))
+          {
+            localList[c]->tempDuty = _tduty;
+          }
+          else
+          {
+            uint32_t tempDuty = (((_tduty << 8) / (localList[c]->blinkPeriod >> 1)) * step) >> 8;
+            localList[c]->tempDuty = period ? _tduty - tempDuty : tempDuty;
           }
         }
         else
         {
-          pinsList[c]->tempDuty = pinsList[c]->pwmDuty;
-        }
-        if (pinsList[c]->isHW)
-        {
-          if (pinsList[c]->prevDuty != pinsList[c]->tempDuty)
-          {
-            pinsList[c]->prevDuty = pinsList[c]->tempDuty;
-            pwm_start(digitalPinToPinName(pinsList[c]->pinHW), CPIN_HWFREQ,
-                      pinsList[c]->lowState == 0 ? pinsList[c]->tempDuty
-                                                 : 255 - pinsList[c]->tempDuty,
-                      (TimerCompareFormat_t)8);
-          }
-        }
-        else
-        {
-          if ((pinsList[c]->tempDuty) && (pinsList[c]->blinkTime))
-          {
-            pinsList[c]->set();
-          }
-          else
-          {
-            pinsList[c]->reset();
-          }
+          localList[c]->tempDuty = period ? localList[c]->pwmDuty : 0;
         }
       }
       else
       {
-        if ((!pinsList[c]->isHW) && (pinsList[c]->blinkTime) &&
-            (pinsList[c]->tempDuty + 1 == counter))
+        localList[c]->tempDuty = localList[c]->pwmDuty;
+      }
+      if (localList[c]->isHW)
+      {
+        if (localList[c]->prevDuty != localList[c]->tempDuty)
         {
-          pinsList[c]->reset();
+          localList[c]->prevDuty = localList[c]->tempDuty;
+          pwm_start(digitalPinToPinName(localList[c]->pinHW), CPIN_HWFREQ,
+                    localList[c]->lowState == 0 ? localList[c]->tempDuty
+                                                : 255 - localList[c]->tempDuty,
+                    (TimerCompareFormat_t)8);
         }
       }
+      else
+      {
+        if ((localList[c]->tempDuty) && (localList[c]->blinkTime))
+        {
+          localList[c]->set();
+        }
+        else
+        {
+          localList[c]->reset();
+        }
+      }
+    }
+    else
+    {
+      if ((!localList[c]->isHW) && (localList[c]->blinkTime) &&
+          ((uint32_t)(localList[c]->tempDuty + 1) == counter))
+      {
+        localList[c]->reset();
+      }
+    }
   }
   timerCounter++;
 }
@@ -333,8 +337,10 @@ cPins::~cPins()
 {
   pinCounter--;
   if (pinCounter)
-    pinsList =
-        (cPins **)realloc((void *)pinsList, pinCounter * sizeof(cPins *));
+  {
+    pinsList = (cPins **)realloc((void *)pinsList, pinCounter * sizeof(cPins *));
+    localList = (cPins **)realloc((void *)pinsList, pinCounter * sizeof(cPins *));
+  }
   if (!pinCounter && timerInited)
     freeTimer(); // normally it should never happen cuz all pins have to be
                  // statically defined, but if you want to malloc cpins

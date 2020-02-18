@@ -14,9 +14,26 @@
 #define CPIN_HWFREQ 1000
 #endif
 
-enum cpinledtype { CPIN_PIN = 0, CPIN_LED = 1, CPIN_HWPIN = 2 , CPIN_HWLED = 3};
-enum cpinmode { CPIN_NORMAL = 0, CPIN_ADDITIVE, CPIN_CONTINUE, CPIN_MODEEND };
-enum cpinstate { CPIN_LOW = 0, CPIN_HIGH = 1, CPIN_OD = 2 };
+enum cpinledtype
+{
+  CPIN_PIN = 0,
+  CPIN_LED = 1,
+  CPIN_HWPIN = 2,
+  CPIN_HWLED = 3
+};
+enum cpinmode
+{
+  CPIN_NORMAL = 0,
+  CPIN_ADDITIVE,
+  CPIN_CONTINUE,
+  CPIN_MODEEND
+};
+enum cpinstate
+{
+  CPIN_LOW = 0,
+  CPIN_HIGH = 1,
+  CPIN_OD = 2
+};
 
 static const uint8_t pwmLED[257] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01,
@@ -42,45 +59,47 @@ static const uint8_t pwmLED[257] = {
     0xFD, 0xFD, 0xFD, 0xFD, 0xFD, 0xFD, 0xFD, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE,
     0xFE, 0xFE, 0xFF, 0xFF, 0xFF};
 
-class cPins {
+class cPins
+{
 private:
-  GPIO_TypeDef *port;
-  uint16_t pin;
-  uint32_t pinHW;
-  uint8_t isHW = 0;
-  uint8_t highState, lowState;
-  uint16_t pwmDuty = 0;
-  uint16_t Duty = 0;
-  uint32_t blinkPeriod = 0;
-  uint32_t toBreathe = 0;
-  volatile uint32_t blinkTime = 0;
-  uint32_t blinkInitTime = 0;
-  uint8_t mode = CPIN_NORMAL;
-  uint8_t blinkFade = 0;
-  uint8_t isLed = 0;
-  uint32_t phaseShift = 0;
-  bool noInterruptable = false;
+  GPIO_TypeDef *port;              // lowlevel GPIO port
+  uint16_t pin;                    // lowlevel GPIO pin
+  uint32_t pinHW;                  // arduino pin num
+  uint8_t isHW = 0;                // is hardware pwm?
+  uint8_t highState, lowState;     // pin states gpio level
+  uint16_t pwmDuty = 0;            // pwm duty cycle value after led correction
+  uint16_t Duty = 0;               // pwm duty cycle before led correction (=pwmDuty if not led)
+  uint32_t blinkPeriod = 0;        // period of blink/breath etc
+  uint32_t toBreathe = 0;          // is configured as breathe
+  volatile uint32_t blinkTime = 0; // time of blink/breath etc
+  uint32_t blinkInitTime = 0;      // container for time initial time value
+  uint8_t mode = CPIN_NORMAL;      // initial mode, no addition or phase shift
+  uint8_t blinkFade = 0;           // is configured as blink&fade
+  uint8_t isLed = 0;               // is configured as led
+  uint32_t phaseShift = 0;         // phase shift value
+  bool noInterruptable = false;    // thread safe mutex
+  static uint32_t localCounter;    // count of active pins container
+  static cPins **localList;        // local container only for active pins
 
-  static HardwareTimer *T;
-  static bool timerInited;
-  static uint32_t timerFreq, prevms;
-  static void pushInstance(cPins *instance);
-  static uint8_t ledBrightness;
-  void setTime(uint32_t time);
+  static HardwareTimer *T;                   // hardware timer object
+  static bool timerInited;                   // is timer inited or not
+  static uint32_t timerFreq, prevms;         // timer frequency and previos millisecond value
+  static void pushInstance(cPins *instance); // push new pin to pinsList
+  static uint8_t ledBrightness;              // global brightness for leds
+  void setTime(uint32_t time);               // set pin time value depending on current mode
 
 public:
-  static uint64_t timerCounter;
-  static const uint32_t ticksPerCycle = PWMMAX;
-  static uint16_t pinCounter; // static counter for inited pins, public only for
-                              // testing purposes only
-  static cPins **pinsList;    // list of inited pins
-  char *name = (char *)nullptr; // pin name, filled by CPIN define, can be used
-                                // for debug purposes
-  uint16_t tempDuty = 0;
-  uint16_t prevDuty = 0xFFFF;
+  static uint64_t timerCounter;                 // pin instances counter
+  static const uint32_t ticksPerCycle = PWMMAX; // timer ticks per duty cycle
+  static uint16_t pinCounter;                   // static counter for inited pins, public only for
+                                                // testing purposes only
+  static cPins **pinsList;                      // list of inited pins
+  char *name = (char *)nullptr;                 // pin name, filled by CPIN define, can be used
+                                                // for debug purposes
+  uint16_t tempDuty = 0;                        // current calculated duty for pin
+  uint16_t prevDuty = 0xFFFF;                   // previous calculated duty
 
-  cPins(const char *cname, uint16_t _PIN, uint8_t isled = CPIN_PIN,
-        uint8_t hs = CPIN_HIGH);
+  cPins(const char *cname, uint16_t _PIN, uint8_t isled = CPIN_PIN, uint8_t hs = CPIN_HIGH);
   // CPIN_PIN will init pin as usual gpio, use CPIN_LED to make brightness
   // change better for leds hs = 0 is for active low pins
 
@@ -91,36 +110,42 @@ public:
   __always_inline void toggle(void);
   __always_inline uint8_t read(void);
 
-  bool isActive(void);        // return false when its off
+  bool isActive(void); // return false when its off
+
   void setPWM(uint16_t duty); // set PWM duty for pin
-  uint16_t getDuty(void);     // for internal use
-  void blink(
-      uint32_t time,
-      uint32_t period = 0); // blink, 1/2 of period it will be on, 1/2 of period
-                            // - off, if period is 0 its equal to .on(time)
-  void breathe(uint32_t time,
-               uint32_t period = 0); // breathing, 1/2 period softly increasing
-                                     // brightness and decreasing after
-  void blinkfade(
-      uint32_t time,
-      uint32_t period = 0); // 1/2 period will be ON, next 1/2 will fadeout
-  void on(uint32_t time);   // just switch it on for a specific time
-  void off();               // switch off
-  void on();                // switch on for infinite time
-  void setMode(
-      uint8_t newMode); // normally any new call will reset previous state
-                        // CPIN_CONTINUE allows to set new time without changing
-                        // period CPIN_ADDITIVE will add time with each new call
+
+  uint16_t getDuty(void); // for internal use
+
+  void blink(uint32_t time, uint32_t period = 0); // blink, 1/2 of period it will be on, 1/2 of period
+                                                  // - off, if period is 0 its equal to .on(time)
+
+  void breathe(uint32_t time, uint32_t period = 0); // breathing, 1/2 period softly increasing
+                                                    // brightness and decreasing after
+
+  void blinkfade(uint32_t time, uint32_t period = 0); // 1/2 period will be ON, next 1/2 will fadeout
+
+  void on(uint32_t time); // just switch it on for a specific time
+
+  void off(); // switch off
+
+  void on(); // switch on for infinite time
+
+  void setMode(uint8_t newMode); // normally any new call will reset previous state
+                                 // CPIN_CONTINUE allows to set new time without changing
+                                 // period CPIN_ADDITIVE will add time with each new call
+
   void noInterrupt(void); // make pin noninterruptable, any new calls will be
                           // ignored till previously set job will expire
-  static void setBrightness(
-      uint8_t brightness); // set global brightness (for CPIN_LED pins only)
+
+  static void setBrightness(uint8_t brightness); // set global brightness (for CPIN_LED pins only)
+
   static void timerCallback(HardwareTimer *ht); // callback for timer routines
-  static void
-  initTimer(TIM_TypeDef *timer = TIM1,
-            uint32_t freq = 60); // by default it will use TIM1 at 60Hz, dont
-                                 // forget to init it at startup
+
+  static void initTimer(TIM_TypeDef *timer = TIM1, uint32_t freq = 60); // by default it will use TIM1 at 60Hz, dont
+                                                                        // forget to init it at startup
+
   static void freeTimer(void);
+
   ~cPins();
 };
 
