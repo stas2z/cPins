@@ -2,7 +2,7 @@
 #define CPINS_H
 
 #include <HardwareTimer.h>
-#include <sketch.h>
+#include <Arduino.h>
 
 #define PWMMAX 256
 
