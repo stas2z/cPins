@@ -2,7 +2,9 @@
 #define CPINS_H
 
 #include <HardwareTimer.h>
-#include <Arduino.h>
+#include <functional>
+#include <vector>
+#include <sketch.h>
 
 #define PWMMAX 256
 
@@ -14,29 +16,25 @@ enum cpinledtype { CPIN_PIN = 0, CPIN_LED = 1, CPIN_HWPIN = 2, CPIN_HWLED = 3 };
 enum cpinmode { CPIN_NORMAL = 0, CPIN_ADDITIVE, CPIN_CONTINUE, CPIN_MODEEND };
 enum cpinstate { CPIN_LOW = 0, CPIN_HIGH = 1, CPIN_OD = 2 };
 
-static const uint8_t pwmLED[257] = {
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01,
-    0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
-    0x01, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x03, 0x03,
-    0x03, 0x03, 0x03, 0x03, 0x04, 0x04, 0x04, 0x04, 0x04, 0x05, 0x05, 0x05,
-    0x05, 0x06, 0x06, 0x06, 0x07, 0x07, 0x07, 0x08, 0x08, 0x08, 0x09, 0x09,
-    0x0A, 0x0A, 0x0B, 0x0B, 0x0C, 0x0C, 0x0D, 0x0D, 0x0E, 0x0F, 0x0F, 0x10,
-    0x11, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B,
-    0x1C, 0x1D, 0x1F, 0x20, 0x21, 0x23, 0x24, 0x26, 0x27, 0x29, 0x2B, 0x2C,
-    0x2E, 0x30, 0x32, 0x34, 0x36, 0x38, 0x3A, 0x3C, 0x3E, 0x40, 0x43, 0x45,
-    0x47, 0x4A, 0x4C, 0x4F, 0x51, 0x54, 0x57, 0x59, 0x5C, 0x5F, 0x62, 0x64,
-    0x67, 0x6A, 0x6D, 0x70, 0x73, 0x76, 0x79, 0x7C, 0x7F, 0x82, 0x85, 0x88,
-    0x8B, 0x8E, 0x91, 0x94, 0x97, 0x9A, 0x9C, 0x9F, 0xA2, 0xA5, 0xA7, 0xAA,
-    0xAD, 0xAF, 0xB2, 0xB4, 0xB7, 0xB9, 0xBB, 0xBE, 0xC0, 0xC2, 0xC4, 0xC6,
-    0xC8, 0xCA, 0xCC, 0xCE, 0xD0, 0xD2, 0xD3, 0xD5, 0xD7, 0xD8, 0xDA, 0xDB,
-    0xDD, 0xDE, 0xDF, 0xE1, 0xE2, 0xE3, 0xE4, 0xE5, 0xE6, 0xE7, 0xE8, 0xE9,
-    0xEA, 0xEB, 0xEC, 0xED, 0xED, 0xEE, 0xEF, 0xEF, 0xF0, 0xF1, 0xF1, 0xF2,
-    0xF2, 0xF3, 0xF3, 0xF4, 0xF4, 0xF5, 0xF5, 0xF6, 0xF6, 0xF6, 0xF7, 0xF7,
-    0xF7, 0xF8, 0xF8, 0xF8, 0xF9, 0xF9, 0xF9, 0xF9, 0xFA, 0xFA, 0xFA, 0xFA,
-    0xFA, 0xFB, 0xFB, 0xFB, 0xFB, 0xFB, 0xFB, 0xFC, 0xFC, 0xFC, 0xFC, 0xFC,
-    0xFC, 0xFC, 0xFC, 0xFC, 0xFD, 0xFD, 0xFD, 0xFD, 0xFD, 0xFD, 0xFD, 0xFD,
-    0xFD, 0xFD, 0xFD, 0xFD, 0xFD, 0xFD, 0xFD, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE,
-    0xFE, 0xFE, 0xFF, 0xFF, 0xFF};
+inline constexpr uint8_t pwmLED[257] = {
+    0,   0,   0,   0,   1,   1,   1,   1,   2,   2,   2,   3,   3,   3,   4,
+    4,   4,   5,   5,   6,   6,   6,   7,   7,   8,   8,   8,   9,   9,   10,
+    10,  11,  11,  12,  12,  13,  13,  14,  14,  15,  15,  16,  16,  17,  18,
+    18,  19,  19,  20,  20,  21,  22,  22,  23,  24,  24,  25,  25,  26,  27,
+    27,  28,  29,  30,  30,  31,  32,  32,  33,  34,  35,  35,  36,  37,  38,
+    38,  39,  40,  41,  42,  42,  43,  44,  45,  46,  46,  47,  48,  49,  50,
+    51,  52,  53,  53,  54,  55,  56,  57,  58,  59,  60,  61,  62,  63,  64,
+    65,  65,  66,  67,  68,  69,  70,  71,  72,  73,  74,  75,  76,  78,  79,
+    80,  81,  82,  83,  84,  85,  86,  87,  88,  89,  90,  91,  93,  94,  95,
+    96,  97,  98,  99,  100, 102, 103, 104, 105, 106, 107, 109, 110, 111, 112,
+    113, 114, 116, 117, 118, 119, 121, 122, 123, 124, 125, 127, 128, 129, 130,
+    132, 133, 134, 135, 137, 138, 139, 141, 142, 143, 144, 146, 147, 148, 150,
+    151, 152, 154, 155, 156, 158, 159, 160, 161, 163, 164, 166, 167, 168, 170,
+    171, 172, 174, 175, 176, 178, 179, 180, 182, 183, 185, 186, 187, 189, 190,
+    191, 193, 194, 196, 197, 198, 200, 201, 203, 204, 205, 207, 208, 210, 211,
+    212, 214, 215, 217, 218, 220, 221, 222, 224, 225, 227, 228, 230, 231, 232,
+    234, 235, 237, 238, 240, 241, 242, 244, 245, 247, 248, 250, 251, 252, 254,
+    255, 255};
 
 class cPins {
 private:
@@ -46,9 +44,8 @@ private:
 #ifndef CPIN_DISABLE_HWTIMER
   uint32_t pinFrequency = CPIN_HWFREQ; // default frequency for HW pin
 #endif
-  uint8_t isHW = 0;            // is hardware pwm?
-  uint8_t highState, lowState; // pin states gpio level
-  uint16_t pwmDuty = 0;        // pwm duty cycle value after led correction
+  uint8_t isHW = 0;     // is hardware pwm?
+  uint16_t pwmDuty = 0; // pwm duty cycle value after led correction
   uint16_t Duty =
       0; // pwm duty cycle before led correction (=pwmDuty if not led)
   uint32_t blinkPeriod = 0;        // period of blink/breath etc
@@ -60,7 +57,10 @@ private:
   uint8_t isLed = 0;               // is configured as led
   uint32_t phaseShift = 0;         // phase shift value
   bool noInterruptable = false;    // thread safe mutex
-  static uint32_t prevms;          // previous millisecond value
+  static uint32_t subTicks;        // ms accumulator (in 1/1000 of tick)
+  static_assert((PWMMAX & (PWMMAX - 1)) == 0, "PWMMAX must be power of two");
+  bool tryBegin(void); // false if pin is noInterruptable and busy
+  void finish(void);   // stop output and call finishCallback
   static uint8_t ledBrightness;    // global brightness for leds
   void setTime(uint32_t time); // set pin time value depending on current mode
 
@@ -72,12 +72,13 @@ public:
   static uint64_t timerCounter;                 // pin instances counter
   static uint32_t timerFreq;                    // timer frequency
   static const uint32_t ticksPerCycle = PWMMAX; // timer ticks per duty cycle
-#undef __inst__
-#define __inst__ std::vector<cPins *>
-  inline static __inst__ localinstances = {};
-  inline static __inst__ instances = {};
-  __inst__::iterator _me;
-  char *name = (char *)NULL;  // pin name, filled by CPIN define, can be used
+  uint8_t highState, lowState;                  // pin states gpio level
+  // public API kept for compatibility. instances: all pins (changed only in
+  // ctor/dtor). localinstances: currently active pins, refreshed every ms by
+  // the timer (capacity is reserved in ctor, so no allocation in ISR).
+  inline static std::vector<cPins *> localinstances = {};
+  inline static std::vector<cPins *> instances = {};
+  char name[32] = "";         // pin name, filled by CPIN define, can be used
                               // for debug purposes
   uint16_t tempDuty = 0;      // current calculated duty for pin
   uint16_t prevDuty = 0xFFFF; // previous calculated duty
@@ -88,11 +89,16 @@ public:
   // change better for leds hs = 0 is for active low pins
 
   /* direct pin access routines, don't use it without special needs */
-  __always_inline void write(uint8_t value);
-  __always_inline void reset(void);
-  __always_inline void set(void);
-  __always_inline void toggle(void);
-  __always_inline uint8_t read(void);
+  __always_inline void write(uint8_t value) {
+    port->BSRR = (uint32_t)pin << (!(value & 1U) << 4);
+  }
+  __always_inline void reset(void) { write(lowState); }
+  __always_inline void set(void) { write(highState); }
+  __always_inline void toggle(void) { // atomic via BSRR
+    port->BSRR = (port->ODR & pin) ? ((uint32_t)pin << 16) : (uint32_t)pin;
+  }
+  // only for output ports, returns 0/1 (physical level)
+  __always_inline uint8_t read(void) { return (port->ODR & pin) != 0; }
 
   bool isActive(void);         // return false when its off
   uint32_t getRemaining(void); // return 0 when its off and ms value when on
@@ -149,13 +155,16 @@ public:
 #else
   static void timerCallback(void); // callback for timer routines
 #endif
+  // Callbacks run in ISR context (keep them short).
   std::function<void(cPins *pin)> finishCallback = [](cPins *) {
   }; // callback called after time expiring or off command
   std::function<void(cPins *pin)> tickCallback = [](cPins *) {
   }; // callback called every ms
+  cPins(const cPins &) = delete;
+  cPins &operator=(const cPins &) = delete;
   ~cPins();
 };
 
-#define CPIN(a, ...) cPins(a)(#a, __VA_ARGS__)
+#define CPIN(a, ...) cPins a(#a, __VA_ARGS__)
 
 #endif
